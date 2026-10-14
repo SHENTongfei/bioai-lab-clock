@@ -81,7 +81,7 @@
       ing3: "long-lived marker (90+)",
       ing4: "no backwards",
       codeTitle: "Trained once, runs on your device",
-      codeText: "The clock was trained once, before this page existed: locked splits, Python, the whole recipe. What ships with the page are the trained weights, about the size of a photo. When you drop your files in, the page runs that trained clock on your device. Nothing is uploaded, and nothing is trained in your browser. The paper's full-cohort model (15 locked splits) runs from the repository below.",
+      codeText: "The clock was trained once, before this page existed: locked splits, Python, the whole recipe. What ships with the page are the trained weights, about the size of a photo. When you drop your files in, the page runs that trained clock on your device. Nothing is uploaded, nothing is trained in your browser, and nothing needs to be installed: the reading is plain web math, so any browser already knows how to do it. The paper's full-cohort model (15 locked splits) runs from the repository below.",
       codeSnippetLabel: "the blending step, in full",
       fullCode: "all the code and the paper",
       navResults: "Your results",
