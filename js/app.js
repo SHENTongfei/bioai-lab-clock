@@ -13,10 +13,16 @@
     b.hidden = false;
   }
   function loadWeights() {
-    state.wReady = fetch("data/weights.json")
+    // Lite (6.5 KB) lands almost instantly and renders results; the full clock
+    // (~1.2 MB) downloads in the background and upgrades the page when ready.
+    state.wLiteReady = fetch("data/weights-lite.json")
       .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-      .then(function (j) { C.loadWeights(j); });
-    state.wReady.catch(function (e) { console.error("weights:", e); });
+      .then(function (j) { state.lite = j; });
+    state.wFullReady = fetch("data/weights.json?v=20261014")
+      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(function (j) { state.full = j; });
+    state.wLiteReady.catch(function (e) { console.error("weights-lite:", e); });
+    state.wFullReady.catch(function (e) { console.error("weights:", e); });
   }
   var $ = function (id) { return document.getElementById(id); };
 
@@ -148,17 +154,34 @@
     if (!ph.ok) { showBusy(null); showStatus(t("errParse"), true); return; }
     var ex = C.parseExpression(exprText, ph.ids);
     if (!ex.ok) { showBusy(null); showStatus(t("errParse"), true); return; }
-    showBusy(t("busyW"));
-    try { await state.wReady; } catch (e) { showBusy(null); showStatus(t("errWeights"), true); return; }
-    if (!C.hasWeights()) { showBusy(null); showStatus(t("errWeights"), true); return; }
+    showBusy(t("busyLite"));
+    var wj = null;
+    try {
+      if (!state.full) await state.wLiteReady;
+      wj = state.lite || state.full;
+      if (!wj) { await state.wFullReady; wj = state.full; }
+      if (!wj) throw new Error("no weights");
+      C.loadWeights(wj);
+    } catch (e) { showBusy(null); showStatus(t("errWeights"), true); return; }
     showBusy(t("busyRun")); await tick(30);
     var r = C.predict(ex, ph);
     if (!r.ok) { showBusy(null); showStatus(t("errMatch"), true); return; }
     showBusy(null);
     showStatus(null);
     state.last = r;
+    state.lastInput = { ex: ex, ph: ph };
     render(r);
     $("results").hidden = false;
+    // silent upgrade: full clock arrived -> recompute in place
+    state.wFullReady.then(function () {
+      if (!state.full || !state.lastInput) return;
+      C.loadWeights(state.full);
+      var r2 = C.predict(state.lastInput.ex, state.lastInput.ph);
+      if (r2.ok && state.last && state.last.meta && state.last.meta.kind === "lite") {
+        state.last = r2;
+        render(r2);
+      }
+    }).catch(function () {});
   }
 
   function bandResidL(r) {
@@ -174,7 +197,9 @@
     $("kpiR2").textContent = r.r2.toFixed(2);
     $("kpiSamples").textContent = String(r.n);
     $("kpiL90").textContent = isFinite(lr) ? Math.abs(lr).toFixed(1) : "–";
-    $("smallLine").textContent = t("smallLine", { rho: r.rho.toFixed(2), prior: fmtPrior(r.meta && r.meta.priorValue) });
+    var line = t("smallLine", { rho: r.rho.toFixed(2), prior: fmtPrior(r.meta && r.meta.priorValue) });
+    if (r.meta && r.meta.kind === "lite") line += "  ·  " + t("modeLite");
+    $("smallLine").textContent = line;
     var mn = t("matchedNote", { m: r.matched, p: r.p });
     var note = $("matchNote");
     note.textContent = mn;

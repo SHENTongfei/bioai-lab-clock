@@ -348,33 +348,41 @@
       Xs[i] = row;
     }
 
-    // ridge anchor
-    var ap = Xs.map(function (x) { return W.anchor.intercept + dot(W.anchor.coef, x); });
-
-    // deep member x seeds (anchor + residSd * tanh(corr)), band logits averaged
-    var deepP = new Array(n), pL = new Array(n);
-    for (i = 0; i < n; i++) {
-      var acc = 0, bl = [0, 0, 0];
-      for (var k = 0; k < W.seeds.length; k++) {
-        var f = deepForward(Xs[i], sex[i], W.seeds[k], p);
-        acc += Math.tanh(f.corr);
-        for (var c3 = 0; c3 < 3; c3++) bl[c3] += f.band[c3];
-      }
-      deepP[i] = ap[i] + W.residSd * (acc / W.seeds.length);
-      var pr = softmax3(bl.map(function (v) { return v / W.seeds.length; }));
-      pL[i] = pr[2];
-    }
-
-    // linear members
+    // linear member (present in full and lite weights)
     var en40P = Xs.map(function (x) {
       var s = W.en40.intercept;
       for (var q = 0; q < W.en40.idx.length; q++) s += W.en40.coef[q] * x[W.en40.idx[q]];
       return s;
     });
-    var enAllP = Xs.map(function (x) { return W.enAll.intercept + dot(W.enAll.coef, x); });
-    var ensP = deepP.map(function (v, i2) { return (v + en40P[i2] + enAllP[i2]) / 3; });
 
-    var maeD = mae(deepP, age), mae40 = mae(en40P, age), maeA = mae(enAllP, age), maeE = mae(ensP, age);
+    var hasDeep = !!(W.seeds && W.seeds.length);
+    var deepP = null, pL = null, enAllP = null;
+    if (hasDeep) {
+      // ridge anchor + deep member x seeds (anchor + residSd * tanh(corr)), band logits averaged
+      var ap = Xs.map(function (x) { return W.anchor.intercept + dot(W.anchor.coef, x); });
+      deepP = new Array(n); pL = new Array(n);
+      for (i = 0; i < n; i++) {
+        var acc = 0, bl = [0, 0, 0];
+        for (var k = 0; k < W.seeds.length; k++) {
+          var f = deepForward(Xs[i], sex[i], W.seeds[k], p);
+          acc += Math.tanh(f.corr);
+          for (var c3 = 0; c3 < 3; c3++) bl[c3] += f.band[c3];
+        }
+        deepP[i] = ap[i] + W.residSd * (acc / W.seeds.length);
+        var pr = softmax3(bl.map(function (v) { return v / W.seeds.length; }));
+        pL[i] = pr[2];
+      }
+      enAllP = Xs.map(function (x) { return W.enAll.intercept + dot(W.enAll.coef, x); });
+    }
+    // blend: full = deep + en40 + enAll; lite = en40 only
+    var ensP = hasDeep
+      ? deepP.map(function (v, i2) { return (v + en40P[i2] + enAllP[i2]) / 3; })
+      : en40P.slice();
+
+    var maeD = hasDeep ? mae(deepP, age) : NaN,
+        mae40 = mae(en40P, age),
+        maeA = hasDeep ? mae(enAllP, age) : NaN,
+        maeE = mae(ensP, age);
 
     function bandMae(b) {
       var ys = [], ps = [];
@@ -386,7 +394,7 @@
 
     var lab = band.map(function (b) { return b === "L" ? 1 : 0; });
     var hasPos = lab.indexOf(1) >= 0, hasNeg = lab.indexOf(0) >= 0;
-    var gateAuc = (hasPos && hasNeg) ? rocAuc(pL, lab) : NaN;
+    var gateAuc = (hasDeep && hasPos && hasNeg) ? rocAuc(pL, lab) : NaN;
 
     // frozen levers: strongest elastic-net weights (fixed by training)
     var src = W.en40.coef.some(function (v) { return v !== 0; }) ? W.en40 : W.enAll;
@@ -402,19 +410,17 @@
       mode: "weights",
       n: n, p: p, matched: matched,
       ageMin: Math.min.apply(null, age), ageMax: Math.max.apply(null, age),
-      views: [
-        { key: "deep", mae: maeD },
-        { key: "en40", mae: mae40 },
-        { key: "enAll", mae: maeA },
-        { key: "ens", mae: maeE }
-      ],
+      views: (hasDeep
+        ? [{ key: "deep", mae: maeD }, { key: "en40", mae: mae40 }, { key: "enAll", mae: maeA }]
+        : [{ key: "en40", mae: mae40 }]
+      ).concat([{ key: "ens", mae: maeE }]),
       maeEns: maeE, r2: r2(ensP, age), rho: spearman(ensP, age),
       bandMae: { Y: bandMae("Y"), M: bandMae("M"), L: bandMae("L") }, bandN: bandN,
       gateAuc: gateAuc, gateN: bandN.L,
       levers: levers,
       scatter: band.map(function (b, i2) { return { x: age[i2], y: ensP[i2], band: b }; }),
       perSample: ids.map(function (id, i2) {
-        return { id: id, age: age[i2], pred: ensP[i2], band: band[i2], lProb: pL[i2] };
+        return { id: id, age: age[i2], pred: ensP[i2], band: band[i2], lProb: pL ? pL[i2] : NaN };
       }),
       meta: W.meta || {}
     };
