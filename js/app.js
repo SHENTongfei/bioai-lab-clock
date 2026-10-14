@@ -12,16 +12,30 @@
     $("busyText").textContent = msg;
     b.hidden = false;
   }
+  function fetchX(url, ms, wantJson) {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, ms);
+    return fetch(url, { signal: ctl.signal }).then(function (r) {
+      clearTimeout(timer);
+      if (!r.ok) throw new Error("http " + r.status);
+      return wantJson ? r.json() : r.text();
+    }).catch(function (e) { clearTimeout(timer); throw e; });
+  }
   function loadWeights() {
-    // Lite (6.5 KB) lands almost instantly and renders results; the full clock
-    // (~1.2 MB) downloads in the background and upgrades the page when ready.
-    state.wLiteReady = fetch("data/weights-lite.json")
-      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
-      .then(function (j) { state.lite = j; });
+    // Lite weights ship INSIDE the page (js/weights-lite.js): zero download,
+    // zero spinner, works even when the network to GitHub is very slow.
+    if (window.LITE_WEIGHTS_JSON) {
+      state.lite = window.LITE_WEIGHTS_JSON;
+      state.wLiteReady = Promise.resolve();
+    } else {
+      state.wLiteReady = fetchX("data/weights-lite.json", 12000, true)
+        .then(function (j) { state.lite = j; });
+      state.wLiteReady.catch(function (e) { console.error("weights-lite:", e); });
+    }
+    // full clock (~1.2 MB) upgrades the page in the background; the UI never waits on it
     state.wFullReady = fetch("data/weights.json?v=20261014")
       .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
       .then(function (j) { state.full = j; });
-    state.wLiteReady.catch(function (e) { console.error("weights-lite:", e); });
     state.wFullReady.catch(function (e) { console.error("weights:", e); });
   }
   var $ = function (id) { return document.getElementById(id); };
@@ -62,15 +76,30 @@
   }
 
   /* ---------- status ---------- */
-  function showStatus(msg, isErr) {
+  function showStatus(msg, isErr, withRetry) {
     var s = $("status");
     s.hidden = !msg;
     s.classList.toggle("err", !!isErr);
     $("statusText").textContent = msg || "";
+    var old = document.getElementById("statusRetry");
+    if (old) old.remove();
+    if (msg && withRetry && state.retry) {
+      var btn = document.createElement("button");
+      btn.id = "statusRetry";
+      btn.className = "btn btn-ghost status-retry";
+      btn.textContent = t("retry");
+      btn.addEventListener("click", function () {
+        var fn = state.retry; state.retry = null;
+        showStatus(null);
+        fn();
+      });
+      s.appendChild(btn);
+    }
   }
 
   /* ---------- data loading ---------- */
   async function onDrop(files) {
+    state.retry = function () { onDrop(files); };
     showStatus(null);
     showBusy(t("busyRead"));
     try {
@@ -106,7 +135,10 @@
       run(exTxt, phenTxt);
     } catch (e) {
       console.error(e);
+      var isTimeout = e && (e.name === "AbortError" || /abort/i.test(String(e.message || "")));
+      if (isTimeout) { showBusy(null); showStatus(t("errNet"), true, true); return; }
       var isZip = e && /zip/.test(String(e.message || e));
+      showBusy(null);
       showStatus(t(isZip ? "errZip" : "errUnknown"), true);
     }
   }
@@ -133,17 +165,19 @@
   }
 
   async function loadDemo() {
+    state.retry = loadDemo;
     showStatus(null);
     showBusy(t("busyRead"));
     try {
       var res = await Promise.all([
-        fetch("data/demo_expression.csv").then(function (r) { return r.text(); }),
-        fetch("data/demo_phenotype.csv").then(function (r) { return r.text(); })
+        fetchX("data/demo_expression.csv", 20000, false),
+        fetchX("data/demo_phenotype.csv", 20000, false)
       ]);
-      run(res[0], res[1]);
+      await run(res[0], res[1]);
     } catch (e) {
       console.error(e);
-      showStatus(t("errUnknown"), true);
+      showBusy(null);
+      showStatus(t("errNet"), true, true);
     }
   }
 

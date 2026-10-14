@@ -95,6 +95,8 @@
       errMatch: "Fewer than 8 of the gene-table samples matched the sample list.",
       errZip: "That compressed file could not be read. Unzip it first, then drop the two files.",
       errUnknown: "Something went wrong while running the clock.",
+      errNet: "Fetching the data took unusually long, the network hiccupped. Press retry, or try again in a moment.",
+      retry: "Retry",
       errWeights: "The trained clock failed to load. Refresh the page and try again."
     },
     "zh-Hans": {
@@ -187,6 +189,8 @@
       errMatch: "基因表里能对到清单的样本不足 8 个。",
       errZip: "这个压缩包读不出来。请先解压，再把里面的两个文件拖进来。",
       errUnknown: "跑时钟的时候出了点小问题。",
+      errNet: "取数据比平时慢，可能是网络波动。点重试，或稍后再来。",
+      retry: "重试",
       errWeights: "训练好的时钟没能加载，请刷新页面再试。"
     },
     "zh-Hant": {
@@ -279,6 +283,8 @@
       errMatch: "基因表裡能對到清單的樣本不足 8 個。",
       errZip: "這個壓縮包讀不出來。請先解壓，再把裡面的兩個檔案拖進來。",
       errUnknown: "跑時鐘的時候出了點小問題。",
+      errNet: "取資料比平時慢，可能是網路波動。點重試，或稍後再來。",
+      retry: "重試",
       errWeights: "訓練好的時鐘沒能載入，請重新整理頁面再試。"
     }
   };
