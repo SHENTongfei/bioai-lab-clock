@@ -250,7 +250,21 @@
   // member (FiLM sex conditioning, band head) x 3 seeds -> EN-40 / EN-all ->
   // equal-weight blend. Nothing is learned in the browser.
   var W = null;
-  function loadWeights(obj) { W = obj; return true; }
+  function b64ToBytes(b64) {
+    var bin = atob(b64), u8 = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  // undo export_weights.pack_arrays: __f32 blobs -> plain number arrays
+  function unpack(obj) {
+    if (obj === null || typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(unpack);
+    if (typeof obj.__f32 === "string") return Array.from(new Float32Array(b64ToBytes(obj.__f32).buffer));
+    var out = {};
+    Object.keys(obj).forEach(function (k) { out[k] = unpack(obj[k]); });
+    return out;
+  }
+  function loadWeights(obj) { W = unpack(obj); return true; }
   function hasWeights() { return !!W; }
 
   function dot(a, b) {

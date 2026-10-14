@@ -169,6 +169,19 @@ def net_to_list(net):
     }
 
 
+def pack_arrays(obj):
+    """Recursively pack long numeric lists as base64 little-endian float32.
+    Cuts the download roughly in half and lets the browser skip JSON parsing."""
+    import base64, struct
+    if isinstance(obj, dict):
+        return {k: pack_arrays(v) for k, v in obj.items()}
+    if isinstance(obj, list) and len(obj) >= 16 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in obj):
+        return {"__f32": base64.b64encode(struct.pack("<%df" % len(obj), *obj)).decode("ascii")}
+    if isinstance(obj, list):
+        return [pack_arrays(v) for v in obj]
+    return obj
+
+
 def main():
     genes, X, y, sex, ids = load_slice()
     n, p = X.shape
@@ -261,7 +274,7 @@ def main():
     }
     os.makedirs(OUT, exist_ok=True)
     with open(os.path.join(OUT, "weights.json"), "w") as f:
-        json.dump(weights, f, separators=(",", ":"))
+        json.dump(pack_arrays(weights), f, separators=(",", ":"))
     kb = os.path.getsize(os.path.join(OUT, "weights.json")) / 1024
 
     check = []
