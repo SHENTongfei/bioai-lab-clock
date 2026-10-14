@@ -191,15 +191,15 @@ th{color:var(--ink-dim);font-weight:600;position:sticky;top:0;background:var(--b
 .how-card p{font-size:14px;color:var(--ink-dim);line-height:1.65;margin:0 0 16px}
 .how-wide{grid-column:1/-1}
 .fig{display:flex;justify-content:center;margin:6px 0 14px}
-.svg-fig{width:100%;max-width:620px;height:auto}
+.svg-fig{width:100%;max-width:100%;height:auto}
 .svg-fig text{font-family:var(--sans)}
-.seg-lab{fill:#0d1226;font-size:13px;font-weight:700}
-.seg-lab-l{fill:#3a2140}
-.anno{fill:var(--rose);font-size:12.5px;font-weight:600}
+.seg-lab{fill:#0d1226;font-size:17px;font-weight:700}
+.seg-lab-l{fill:#3a2140;font-size:16px}
+.anno{fill:var(--rose);font-size:15px;font-weight:600}
 .anno-soft{fill:var(--ink-faint);font-weight:500}
-.tick{fill:var(--ink-faint);font-size:10px}
-.box-lab{fill:#eef1fb;font-size:14px;font-weight:700}
-.box-sub{fill:var(--ink-faint);font-size:10.5px}
+.tick{fill:var(--ink-faint);font-size:12.5px}
+.box-lab{fill:#eef1fb;font-size:16px;font-weight:700}
+.box-sub{fill:var(--ink-faint);font-size:12.5px}
 .box-lab-out{fill:#2a1530}
 .ing{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
 .ing span{font-size:12px;color:var(--ink);background:var(--glass);border:1px solid var(--glass-brd);padding:6px 12px;border-radius:999px}

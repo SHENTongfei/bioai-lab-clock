@@ -55,7 +55,19 @@
     try {
       var arr = Array.from(files);
       var texts = [];
-      for (var i = 0; i < arr.length; i++) texts.push(await arr[i].text());
+      for (var i = 0; i < arr.length; i++) {
+        var f = arr[i];
+        var nm = (f.name || "").toLowerCase();
+        if (nm.slice(-4) === ".zip") {
+          var packed = await C.unzip(await f.arrayBuffer());
+          Object.keys(packed).forEach(function (k) {
+            var ext = k.slice(-4).toLowerCase();
+            if (ext === ".csv" || ext === ".tsv") texts.push(packed[k]);
+          });
+        } else {
+          texts.push(await f.text());
+        }
+      }
       var phenTxt = null, phenIdx = -1;
       for (var k = 0; k < texts.length; k++) {
         var ph = C.parsePhenotype(texts[k]);
@@ -73,7 +85,8 @@
       run(exTxt, phenTxt);
     } catch (e) {
       console.error(e);
-      showStatus(t("errUnknown"), true);
+      var isZip = e && /zip/.test(String(e.message || e));
+      showStatus(t(isZip ? "errZip" : "errUnknown"), true);
     }
   }
 
@@ -96,16 +109,6 @@
       if (inp.files.length) onDrop(inp.files);
       inp.value = "";
     });
-    $("btnDownload").addEventListener("click", function (e) {
-      e.preventDefault();
-      dl("data/demo_expression.csv");
-      dl("data/demo_phenotype.csv");
-    });
-  }
-  function dl(href) {
-    var a = document.createElement("a");
-    a.href = href; a.download = "";
-    document.body.appendChild(a); a.click(); a.remove();
   }
 
   async function loadDemo() {

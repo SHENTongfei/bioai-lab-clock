@@ -386,10 +386,71 @@
     };
   }
 
+  /* ---------------- zip (demo bundle) ---------------- */
+  // Minimal zip reader: STORE (0) and DEFLATE (8) entries, no zip64.
+  function unzip(buffer) {
+    return new Promise(function (resolve, reject) {
+      try {
+        var u8 = new Uint8Array(buffer);
+        var dv = new DataView(buffer);
+        var eocd = -1;
+        for (var i = u8.length - 22; i >= Math.max(0, u8.length - 65558); i--) {
+          if (u8[i] === 0x50 && u8[i + 1] === 0x4b && u8[i + 2] === 0x05 && u8[i + 3] === 0x06) { eocd = i; break; }
+        }
+        if (eocd < 0) { reject(new Error("not a zip")); return; }
+        var count = dv.getUint16(eocd + 10, true);
+        var ptr = dv.getUint32(eocd + 16, true);
+        var jobs = [];
+        for (var k = 0; k < count; k++) {
+          var method = dv.getUint16(ptr + 10, true);
+          var csize = dv.getUint32(ptr + 20, true);
+          var nlen = dv.getUint16(ptr + 28, true);
+          var elen = dv.getUint16(ptr + 30, true);
+          var clen = dv.getUint16(ptr + 32, true);
+          var lho = dv.getUint32(ptr + 42, true);
+          var name = new TextDecoder().decode(u8.slice(ptr + 46, ptr + 46 + nlen));
+          var nlen2 = dv.getUint16(lho + 26, true);
+          var elen2 = dv.getUint16(lho + 28, true);
+          var start = lho + 30 + nlen2 + elen2;
+          jobs.push({ name: name, method: method, data: u8.slice(start, start + csize) });
+          ptr += 46 + nlen + elen + clen;
+        }
+        Promise.all(jobs.map(function (j) {
+          if (j.method === 0) return Promise.resolve(new TextDecoder().decode(j.data));
+          if (j.method !== 8) return Promise.reject(new Error("unsupported zip compression"));
+          var ds = new DecompressionStream("deflate-raw");
+          var writer = ds.writable.getWriter();
+          writer.write(j.data);
+          writer.close();
+          var reader = ds.readable.getReader();
+          var chunks = [];
+          function read() {
+            return reader.read().then(function (r) {
+              if (r.done) {
+                var total = 0; chunks.forEach(function (c) { total += c.length; });
+                var out = new Uint8Array(total); var off = 0;
+                chunks.forEach(function (c) { out.set(c, off); off += c.length; });
+                return new TextDecoder().decode(out);
+              }
+              chunks.push(r.value);
+              return read();
+            });
+          }
+          return read();
+        })).then(function (texts) {
+          var files = {};
+          texts.forEach(function (t, idx) { files[jobs[idx].name] = t; });
+          resolve(files);
+        }, reject);
+      } catch (e) { reject(e); }
+    });
+  }
+
   return {
     parsePhenotype: parsePhenotype,
     parseExpression: parseExpression,
     buildClock: buildClock,
+    unzip: unzip,
     _metrics: { mae: mae, rmse: rmse, r2: r2, spearman: spearman, rocAuc: rocAuc }
   };
 });
