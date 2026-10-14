@@ -192,7 +192,7 @@ th{color:var(--ink-dim);font-weight:600;position:sticky;top:0;background:var(--b
 .how-wide{grid-column:1/-1}
 .fig{display:flex;justify-content:center;margin:6px 0 4px}
 .fig-card{padding:26px 20px}
-.fig-card .svg-fig{display:block;max-width:900px;margin:0 auto}
+.fig-card .svg-fig{display:block;width:100%;max-width:900px;height:auto;margin:0 auto}
 .svg-fig{width:100%;max-width:100%;height:auto}
 .svg-fig text{font-family:var(--sans)}
 .seg-lab{fill:#0d1226;font-size:17px;font-weight:700}
