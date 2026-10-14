@@ -239,6 +239,9 @@ th{color:var(--ink-dim);font-weight:600;position:sticky;top:0;background:var(--b
   .hero{padding-top:28px}
   .results-head h2{font-size:20px}
 }
+/* hidden must always win over author display rules (busy overlay, status bar) */
+[hidden]{display:none!important}
+
 /* ---------- busy overlay ---------- */
 #busy{position:fixed;inset:0;z-index:90;display:grid;place-items:center;
   background:rgba(6,9,20,.68);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)}
