@@ -95,6 +95,7 @@
       <div class="results-head">
         <h2 data-i18n="resultsTitle"></h2>
         <p data-i18n="resultsSub"></p>
+        <p class="match-note" id="matchNote"></p>
       </div>
 
       <div class="kpis">
@@ -198,7 +199,7 @@
             <span data-i18n="ing3"></span><span data-i18n="ing4"></span>
           </div>
           <div class="fig fig-model">
-            <svg viewBox="0 52 640 240" class="svg-fig" aria-hidden="true">
+            <svg viewBox="0 30 640 262" class="svg-fig" aria-hidden="true">
               <defs>
                 <linearGradient id="gb" x1="0" y1="0" x2="1" y2="1">
                   <stop offset="0" stop-color="#1b2440"/><stop offset="1" stop-color="#141a30"/>
@@ -228,15 +229,17 @@
               <line x1="320" y1="150" x2="352" y2="208" stroke="url(#ar)" stroke-width="2" marker-end="url(#ah)"/>
 
               <g>
+                <rect x="346" y="34" width="130" height="24" rx="12" fill="rgba(226,159,212,.14)" stroke="#e29fd4" stroke-opacity=".55"/>
+                <text class="box-tag" x="411" y="50" text-anchor="middle" data-i18n="svgW"></text>
                 <rect x="356" y="66"  width="110" height="50" rx="13" fill="url(#gb)" stroke="#9cc7de" stroke-opacity=".5"/>
                 <text class="box-lab" x="411" y="88" text-anchor="middle" data-i18n="svgAll"></text>
-                <text class="box-sub" x="411" y="106" text-anchor="middle">MAE 12.5</text>
+                <text class="box-sub" x="411" y="106" text-anchor="middle" id="svgMaeDeep">MAE -</text>
                 <rect x="356" y="124" width="110" height="50" rx="13" fill="url(#gb)" stroke="#b9aed1" stroke-opacity=".5"/>
                 <text class="box-lab" x="411" y="146" text-anchor="middle" data-i18n="svg40"></text>
-                <text class="box-sub" x="411" y="164" text-anchor="middle">MAE 10.9</text>
+                <text class="box-sub" x="411" y="164" text-anchor="middle" id="svgMae40">MAE -</text>
                 <rect x="356" y="182" width="110" height="50" rx="13" fill="url(#gb)" stroke="#e7b8dd" stroke-opacity=".5"/>
                 <text class="box-lab" x="411" y="204" text-anchor="middle" data-i18n="svg150"></text>
-                <text class="box-sub" x="411" y="222" text-anchor="middle">MAE 11.4</text>
+                <text class="box-sub" x="411" y="222" text-anchor="middle" id="svgMaeAll">MAE -</text>
               </g>
 
               <line x1="466" y1="91"  x2="498" y2="136" stroke="url(#ar)" stroke-width="2" marker-end="url(#ah)"/>
@@ -254,9 +257,9 @@
           </div>
           <div class="codecard">
             <small data-i18n="codeSnippetLabel"></small>
-            <pre><code><span class="c-com">// three views of the same idea, at three detail levels</span>
-<span class="c-kw">const</span> views = [<span class="c-fn">ridge</span>(allGenes), <span class="c-fn">ridge</span>(top40), <span class="c-fn">ridge</span>(top150)];
-<span class="c-kw">const</span> reading = (views[0] + views[1] + views[2]) / 3;  <span class="c-com">// all of it, on your device</span></code></pre>
+            <pre><code><span class="c-com">// three trained members, one blended reading (inference only, on your device)</span>
+<span class="c-kw">const</span> reading = (<span class="c-fn">deep</span>(x, sex) + <span class="c-fn">linear40</span>(x) + <span class="c-fn">linearAll</span>(x)) / 3;
+<span class="c-kw">const</span> band = <span class="c-fn">softmax</span>(deepBand(x, sex))[2];  <span class="c-com">// the long-lived track score</span></code></pre>
           </div>
         </article>
 
@@ -278,6 +281,14 @@
       </div>
     </footer>
   </main>
+
+  <div id="busy" hidden>
+    <div class="busy-card">
+      <div class="busy-ring"><img class="busy-logo" src="assets/logo-256.png" alt=""></div>
+      <div class="busy-title" id="busyText"></div>
+      <div class="busy-bar"><i></i></div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <script src="js/i18n.js"></script>

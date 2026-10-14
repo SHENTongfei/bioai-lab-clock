@@ -25,14 +25,22 @@ phenotype never leave the page.
 - **Trilingual UI**: English / 中文 (zh-Hans) / 繁體 (zh-Hant), one click, persisted.
 - **Responsive**: desktop and mobile layouts.
 
-## Scope (read before citing)
+## How the clock runs (trained weights, local inference)
 
-This is a **demo-scale linear core** of the LoCRANE framework, computed
-locally in the browser. The full deep LoCRANE ensemble (residual network with
-the four measured priors, the 15-split locked protocol, external transfer,
-mining and survival probe) runs via [`code/run_demo.py`](https://github.com/SHENTongfei/LoCRANE/blob/main/code/run_demo.py)
-in the [LoCRANE repository](https://github.com/SHENTongfei/LoCRANE). Numbers on
-this page are not the paper's frozen results.
+The clock is **trained once** (in Python, `tools/export_weights.py`: the LoCRANE
+demo recipe — cross-fitted ridge anchor, FiLM deep member x 3 seeds with band
+auxiliary + monotonicity, EN-40 / EN-all elastic nets, equal-weight eq3' blend).
+The trained weights ship with the page as `data/weights.json` (~4.7 MB, ~1.9 MB
+over the wire). When you drop data in, the browser runs **inference only** — a
+pure-JS forward pass, bit-faithful to the PyTorch model (verified to <1e-2 on
+check vectors). No training happens in the browser, and no file is uploaded.
+
+The page also reports frozen training-time facts (5-split locked CV MAE 6.24 y,
+per-member MAE, prior value +0.53 y) next to what it measures on your own data.
+
+The paper's full-cohort model (15 locked splits) runs via
+[`code/run_demo.py`](https://github.com/SHENTongfei/LoCRANE/blob/main/code/run_demo.py)
+in the [LoCRANE repository](https://github.com/SHENTongfei/LoCRANE).
 
 ## Run it
 
@@ -51,7 +59,9 @@ Deployed on GitHub Pages: <https://shentongfei.github.io/bioai-lab-clock/>
 |---|---|
 | `index.html` | single-page UI |
 | `css/style.css` | dark tech / glass theme, responsive |
-| `js/engine.js` | data parsing + in-browser clock (UMD, node-testable) |
+| `js/engine.js` | CSV/zip parsing + weights inference (UMD, node-testable) |
+| `data/weights.json` | trained clock weights (exported by `tools/export_weights.py`) |
+| `tools/export_weights.py` | one-shot training + export (production tool, not part of the page) |
 | `js/i18n.js` | EN / zh-Hans / zh-Hant dictionaries |
 | `js/app.js` | drop zone, language switch, ECharts rendering |
 | `data/demo_expression.csv` | real 300-gene × 150-sample slice |

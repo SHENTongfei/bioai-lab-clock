@@ -3,7 +3,21 @@
   "use strict";
   var C = window.Clock;
   var CHARTS = [];
-  var state = { last: null };
+  var state = { last: null, wReady: null };
+
+  function tick(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+  function showBusy(msg) {
+    var b = $("busy");
+    if (!msg) { b.hidden = true; return; }
+    $("busyText").textContent = msg;
+    b.hidden = false;
+  }
+  function loadWeights() {
+    state.wReady = fetch("data/weights.json")
+      .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
+      .then(function (j) { C.loadWeights(j); });
+    state.wReady.catch(function (e) { console.error("weights:", e); });
+  }
   var $ = function (id) { return document.getElementById(id); };
 
   /* ---------- language ---------- */
@@ -51,7 +65,8 @@
 
   /* ---------- data loading ---------- */
   async function onDrop(files) {
-    showStatus(t("computing"), false);
+    showStatus(null);
+    showBusy(t("busyRead"));
     try {
       var arr = Array.from(files);
       var texts = [];
@@ -112,7 +127,8 @@
   }
 
   async function loadDemo() {
-    showStatus(t("computing"), false);
+    showStatus(null);
+    showBusy(t("busyRead"));
     try {
       var res = await Promise.all([
         fetch("data/demo_expression.csv").then(function (r) { return r.text(); }),
@@ -126,16 +142,19 @@
   }
 
   /* ---------- compute + render ---------- */
-  function run(exprText, phenText) {
+  async function run(exprText, phenText) {
+    showBusy(t("busyRead")); await tick(30);
     var ph = C.parsePhenotype(phenText);
-    if (!ph.ok) { showStatus(t("errParse"), true); return; }
+    if (!ph.ok) { showBusy(null); showStatus(t("errParse"), true); return; }
     var ex = C.parseExpression(exprText, ph.ids);
-    if (!ex.ok) { showStatus(t("errParse"), true); return; }
-    var r = C.buildClock(ex, ph);
-    if (!r.ok) {
-      showStatus(r.error === "Fewer than 8 expression samples matched the phenotype." ? t("errMatch") : t("errUnknown"), true);
-      return;
-    }
+    if (!ex.ok) { showBusy(null); showStatus(t("errParse"), true); return; }
+    showBusy(t("busyW"));
+    try { await state.wReady; } catch (e) { showBusy(null); showStatus(t("errWeights"), true); return; }
+    if (!C.hasWeights()) { showBusy(null); showStatus(t("errWeights"), true); return; }
+    showBusy(t("busyRun")); await tick(30);
+    var r = C.predict(ex, ph);
+    if (!r.ok) { showBusy(null); showStatus(t("errMatch"), true); return; }
+    showBusy(null);
     showStatus(null);
     state.last = r;
     render(r);
@@ -155,7 +174,11 @@
     $("kpiR2").textContent = r.r2.toFixed(2);
     $("kpiSamples").textContent = String(r.n);
     $("kpiL90").textContent = isFinite(lr) ? Math.abs(lr).toFixed(1) : "–";
-    $("smallLine").textContent = t("smallLine", { rho: r.rho.toFixed(2), sex: (r.sexValue >= 0 ? "+" : "") + r.sexValue.toFixed(2) });
+    $("smallLine").textContent = t("smallLine", { rho: r.rho.toFixed(2), prior: fmtPrior(r.meta && r.meta.priorValue) });
+    var mn = t("matchedNote", { m: r.matched, p: r.p });
+    var note = $("matchNote");
+    note.textContent = mn;
+    note.classList.toggle("warn", r.matched < r.p);
 
     // gate card (plain words: separation score, not "gate AUC")
     var hasGate = isFinite(r.gateAuc) && r.gateN > 0;
@@ -213,15 +236,23 @@
     o.series = series;
     c.setOption(o, true);
   }
+  function fmtPrior(v) { return (typeof v === "number" && isFinite(v)) ? (v >= 0 ? "+" : "") + v.toFixed(2) : "–"; }
   function renderViews(r) {
     var c = newChart("chartViews"); if (!c) return;
     var o = baseTheme();
-    var labels = [t("viewAll"), t("view40"), t("viewBig"), t("viewEns")];
+    var labels = [t("viewDeep"), t("view40"), t("viewAll"), t("viewEns")];
     var vals = r.views.map(function (v) { return +v.mae.toFixed(2); });
+    var barCol = ["#776b97", "#9cc7de", "#8f83b8", "#e29fd4"];
     o.grid = { left: 8, right: 12, top: 24, bottom: 8, containLabel: true };
     o.xAxis = { type: "category", data: labels, axisLabel: { color: "#a3add2", interval: 0, fontSize: 11 }, axisLine: { lineStyle: { color: "rgba(255,255,255,.16)" } }, axisTick: { show: false } };
     o.yAxis = { type: "value", min: 0, splitLine: { lineStyle: { color: "rgba(255,255,255,.06)" } } };
-    o.series = [{ type: "bar", data: vals.map(function (v, i) { return { value: v, itemStyle: { color: i === 3 ? "#e29fd4" : "#8f83b8", borderRadius: [6, 6, 0, 0] } }; }), barWidth: "52%", label: { show: true, position: "top", color: "#eef1fb", fontFamily: "monospace", formatter: function (p) { return p.value; } } }];
+    o.series = [{ type: "bar", data: vals.map(function (v, i) { return { value: v, itemStyle: { color: barCol[i], borderRadius: [6, 6, 0, 0] } }; }), barWidth: "52%", label: { show: true, position: "top", color: "#eef1fb", fontFamily: "monospace", formatter: function (p) { return p.value; } } }];
+    var mm = r.meta && r.meta.memberMae;
+    if (mm && $("svgMaeDeep")) {
+      $("svgMaeDeep").textContent = "MAE " + mm.deep;
+      $("svgMae40").textContent = "MAE " + mm.en40;
+      $("svgMaeAll").textContent = "MAE " + mm.enAll;
+    }
     o.tooltip = { trigger: "axis" };
     c.setOption(o, true);
   }
@@ -273,6 +304,7 @@
     setupLang();
     setupDrawer();
     setupDrop();
+    loadWeights();
     $("btnDemo").addEventListener("click", loadDemo);
     window.addEventListener("resize", function () { CHARTS.forEach(function (c) { if (c) c.resize(); }); });
     __applyDom();

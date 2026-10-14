@@ -243,146 +243,166 @@
     return auc / (nP * nN);
   }
 
-  /* ---------------- the clock ---------------- */
-  function buildClock(expr, phen, opts) {
-    opts = opts || {};
-    var p = expr.genes.length;
+  /* ---------------- pretrained clock (weights + pure-JS inference) ---------------- */
+  // The clock is trained once (tools/export_weights.py, locked demo protocol) and
+  // shipped as data/weights.json. Inference below is a faithful pure-JS port of the
+  // PyTorch forward pass: standardized inputs -> ridge anchor -> residual deep
+  // member (FiLM sex conditioning, band head) x 3 seeds -> EN-40 / EN-all ->
+  // equal-weight blend. Nothing is learned in the browser.
+  var W = null;
+  function loadWeights(obj) { W = obj; return true; }
+  function hasWeights() { return !!W; }
+
+  function dot(a, b) {
+    var s = 0;
+    for (var i = 0; i < a.length; i++) s += a[i] * b[i];
+    return s;
+  }
+
+  // one deep seed: returns {corr, band[3]} for a standardized row x and sex code
+  function deepForward(x, sexv, sd, p) {
+    var h = new Array(128), u, j;
+    for (u = 0; u < 128; u++) {
+      var s0 = sd.fc1B[u] + dot(sd.fc1W[u], x);
+      h[u] = s0 > 0 ? s0 : 0;
+    }
+    // FiLM: sex (scalar) -> Linear(1,16) -> ReLU -> Linear(16,256) (gamma 128 | beta 128)
+    var f1 = new Array(16), a;
+    for (a = 0; a < 16; a++) {
+      var fv = sd.film1B[a] + sexv * sd.film1W[a][0];
+      f1[a] = fv > 0 ? fv : 0;
+    }
+    var gb = new Array(256);
+    for (var b2 = 0; b2 < 256; b2++) {
+      var sv = sd.film2B[b2] + dot(sd.film2W[b2], f1);
+      gb[b2] = Math.tanh(sv);
+    }
+    for (u = 0; u < 128; u++) h[u] = h[u] * (1 + gb[u]) + gb[128 + u];
+    // residual block
+    var t1 = new Array(128);
+    for (u = 0; u < 128; u++) {
+      var s3 = sd.blk1B[u] + dot(sd.blk1W[u], h);
+      t1[u] = s3 > 0 ? s3 : 0;
+    }
+    for (u = 0; u < 128; u++) {
+      var o2 = sd.blk2B[u] + dot(sd.blk2W[u], t1);
+      h[u] += o2 > 0 ? o2 : 0;  // the block ends with a ReLU on its own output (training semantics)
+    }
+    var corr = sd.headB[0] + dot(sd.headW[0], h);
+    var bl = [0, 0, 0];
+    for (var c2 = 0; c2 < 3; c2++) bl[c2] = sd.bandB[c2] + dot(sd.bandW[c2], h);
+    return { corr: corr, band: bl };
+  }
+
+  function softmax3(z) {
+    var m = Math.max(z[0], z[1], z[2]);
+    var e = z.map(function (v) { return Math.exp(v - m); });
+    var t = e[0] + e[1] + e[2];
+    return [e[0] / t, e[1] / t, e[2] / t];
+  }
+
+  function predict(expr, phen) {
+    if (!W) return { ok: false, error: "weights not loaded" };
+    var p = W.genes.length;
     var idAge = {}, idSex = {};
     phen.ids.forEach(function (id, i) { idAge[id] = phen.age[i]; idSex[id] = phen.sex[i]; });
-    var keep = [], keepAge = [], keepSex = [], keepBand = [];
+    var ids = [], age = [], sex = [], band = [];
     expr.samples.forEach(function (id) {
       if (idAge[id] === undefined) return;
       var a = idAge[id];
-      keep.push(expr.samples.indexOf(id));
-      keepAge.push(a);
-      keepSex.push(idSex[id]);
-      keepBand.push(a >= 90 ? "L" : (a <= 50 ? "Y" : "M"));
+      ids.push(id); age.push(a); sex.push(idSex[id]);
+      band.push(a >= 90 ? "L" : (a <= 50 ? "Y" : "M"));
     });
-    if (keep.length < 8) return { ok: false, error: "Fewer than 8 expression samples matched the phenotype." };
+    if (ids.length < 1) return { ok: false, error: "none of the expression samples matched the sample list" };
+    var n = ids.length;
 
-    // X rows = samples (n), cols = genes (p); standardized per gene across samples
-    var n = keep.length;
-    var raw = keep.map(function (si) { return expr.mat.map(function (row) { return row[si]; }); });
-    var colMean = new Array(p).fill(0);
-    raw.forEach(function (row) { for (var j = 0; j < p; j++) colMean[j] += row[j]; });
-    colMean = colMean.map(function (v) { return v / n; });
-    var colVar = new Array(p).fill(0);
-    raw.forEach(function (row) { for (var j = 0; j < p; j++) colVar[j] += (row[j] - colMean[j]) * (row[j] - colMean[j]); });
-    var colSd = colVar.map(function (v, j) { return Math.sqrt(v / n) || 1; });
-    var Xg = raw.map(function (row) { return row.map(function (v, j) { return (v - colMean[j]) / colSd[j]; }); });
-    var y = keepAge;
-    var useSex = opts.useSex !== false;
-
-    // feature budgets by univariate |corr| with age (elastic-net-style top-K)
-    var cor = new Array(p).fill(0);
-    for (var j = 0; j < p; j++) {
-      var sxy = 0;
-      for (var i = 0; i < n; i++) sxy += Xg[i][j] * y[i];
-      cor[j] = sxy / n;
-    }
-    var order = cor.map(function (v, j) { return [Math.abs(v), j]; }).sort(function (a, b) { return b[0] - a[0]; });
-    var top40 = order.slice(0, Math.min(40, p)).map(function (o) { return o[1]; }).sort(function (a, b) { return a - b; });
-    var bigK = Math.min(150, p);
-    var topBig = order.slice(0, bigK).map(function (o) { return o[1]; }).sort(function (a, b) { return a - b; });
-
-    function foldOf(i) { return i % 5; }
-
-    // 5-fold CV of a ridge view. Design (D) = n x cols; `cols` = gene indices (or null = all).
-    function cvRidge(cols, lambda) {
-      var idx = cols || Array.from({ length: D[0].length }, function (_, k) { return k; });
-      var Dc = D.map(function (row) { return idx.map(function (k) { return row[k]; }); });
-      var pred = new Array(n).fill(0);
-      for (var f = 0; f < 5; f++) {
-        var tr = [], te = [];
-        for (var i = 0; i < n; i++) (foldOf(i) === f ? te : tr).push(i);
-        var fit = ridgeFit(tr.map(function (i) { return Dc[i]; }), tr.map(function (i) { return y[i]; }), lambda);
-        te.forEach(function (i) { pred[i] = predict(fit, [Dc[i]])[0]; });
+    // align the user's matrix to the trained gene order (missing gene -> z 0 = mean)
+    var colOf = {};
+    expr.genes.forEach(function (g, j) { if (colOf[g] === undefined) colOf[g] = j; });
+    var matched = 0, j;
+    for (j = 0; j < p; j++) if (colOf[W.genes[j]] !== undefined) matched++;
+    var Xs = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var si = expr.samples.indexOf(ids[i]);
+      var row = new Array(p);
+      for (j = 0; j < p; j++) {
+        var c = colOf[W.genes[j]];
+        if (c === undefined) { row[j] = 0; continue; }
+        var v = (expr.mat[j][si] - W.geneMean[j]) / W.geneSd[j];
+        row[j] = isFinite(v) ? v : 0;
       }
-      return pred;
-    }
-    function ensembleMa(Dm, lambda) {
-      var a = cvRidge(null, lambda), b = cvRidge(top40, lambda), c = cvRidge(topBig, lambda);
-      var ens = a.map(function (v, i) { return (v + b[i] + c[i]) / 3; });
-      return { ens: ens, mae: mae(ens, y), a: a, b: b, c: c };
+      Xs[i] = row;
     }
 
-    // design with the sex covariate (if used)
-    var D = useSex
-      ? Xg.map(function (row, i) { var r = row.slice(); r.push(keepSex[i]); return r; })
-      : Xg;
+    // ridge anchor
+    var ap = Xs.map(function (x) { return W.anchor.intercept + dot(W.anchor.coef, x); });
 
-    // locked lambda grid: pick the value with the lowest ensemble CV MAE
-    var lamGrid = opts.lamGrid || [10, 100, 1000];
-    var best = null;
-    lamGrid.forEach(function (lam) {
-      var e = ensembleMa(D, lam);
-      if (!best || e.mae < best.mae) best = { lam: lam, mae: e.mae, e: e };
+    // deep member x seeds (anchor + residSd * tanh(corr)), band logits averaged
+    var deepP = new Array(n), pL = new Array(n);
+    for (i = 0; i < n; i++) {
+      var acc = 0, bl = [0, 0, 0];
+      for (var k = 0; k < W.seeds.length; k++) {
+        var f = deepForward(Xs[i], sex[i], W.seeds[k], p);
+        acc += Math.tanh(f.corr);
+        for (var c3 = 0; c3 < 3; c3++) bl[c3] += f.band[c3];
+      }
+      deepP[i] = ap[i] + W.residSd * (acc / W.seeds.length);
+      var pr = softmax3(bl.map(function (v) { return v / W.seeds.length; }));
+      pL[i] = pr[2];
+    }
+
+    // linear members
+    var en40P = Xs.map(function (x) {
+      var s = W.en40.intercept;
+      for (var q = 0; q < W.en40.idx.length; q++) s += W.en40.coef[q] * x[W.en40.idx[q]];
+      return s;
     });
-    var lambda = best.lam;
-    var ens = best.e;
-    var predAll = ens.a, pred40 = ens.b, predBig = ens.c, predEns = ens.ens;
+    var enAllP = Xs.map(function (x) { return W.enAll.intercept + dot(W.enAll.coef, x); });
+    var ensP = deepP.map(function (v, i2) { return (v + en40P[i2] + enAllP[i2]) / 3; });
 
-    var maeAll = mae(predAll, y), mae40 = mae(pred40, y), maeBig = mae(predBig, y), maeEns = best.mae;
-    var r2Ens = r2(predEns, y), rhoEns = spearman(predEns, y);
+    var maeD = mae(deepP, age), mae40 = mae(en40P, age), maeA = mae(enAllP, age), maeE = mae(ensP, age);
 
     function bandMae(b) {
       var ys = [], ps = [];
-      keepBand.forEach(function (bb, i) { if (bb === b) { ys.push(y[i]); ps.push(predEns[i]); } });
+      band.forEach(function (bb, i2) { if (bb === b) { ys.push(age[i2]); ps.push(ensP[i2]); } });
       return ys.length ? mae(ps, ys) : NaN;
     }
-    var bandMaeOut = { Y: bandMae("Y"), M: bandMae("M"), L: bandMae("L") };
     var bandN = { Y: 0, M: 0, L: 0 };
-    keepBand.forEach(function (b) { bandN[b]++; });
+    band.forEach(function (b) { bandN[b]++; });
 
-    // sex-prior value: ensemble MAE without the sex covariate vs with it
-    var sexValue = 0;
-    if (useSex) {
-      var eNo = ensembleMa(Xg, lambda);
-      sexValue = eNo.mae - maeEns; // >0 => the sex covariate lowers MAE
-    }
+    var lab = band.map(function (b) { return b === "L" ? 1 : 0; });
+    var hasPos = lab.indexOf(1) >= 0, hasNeg = lab.indexOf(0) >= 0;
+    var gateAuc = (hasPos && hasNeg) ? rocAuc(pL, lab) : NaN;
 
-    // gate: dedicated 5-fold ridge classifier for 90+ (L) vs the rest -> AUC
-    var lab = keepBand.map(function (b) { return b === "L" ? 1 : 0; });
-    var hasPos = lab.some(function (v) { return v === 1; });
-    var gateAuc = NaN;
-    if (hasPos && lab.some(function (v) { return v === 0; })) {
-      var idxAll = Array.from({ length: D[0].length }, function (_, k) { return k; });
-      var Dc = D.map(function (row) { return idxAll.map(function (k) { return row[k]; }); });
-      var gpred = new Array(n).fill(0);
-      for (var f = 0; f < 5; f++) {
-        var tr = [], te = [];
-        for (var i = 0; i < n; i++) (foldOf(i) === f ? te : tr).push(i);
-        var fit = ridgeFit(tr.map(function (i) { return Dc[i]; }), tr.map(function (i) { return lab[i]; }), lambda);
-        te.forEach(function (i) { gpred[i] = predict(fit, [Dc[i]])[0]; });
-      }
-      gateAuc = rocAuc(gpred, lab);
-    }
-
-    // levers: top |standardized coef| of the all-data, all-gene ridge
-    var fitAll = ridgeFit(Xg, y, lambda);
-    var levers = fitAll.coef.map(function (c, jj) { return [Math.abs(c), jj]; })
-      .sort(function (a, b) { return b[0] - a[0]; })
-      .slice(0, 15)
-      .map(function (o) { return { gene: expr.genes[o[1]], w: fitAll.coef[o[1]] }; })
-      .sort(function (a, b) { return Math.abs(b.w) - Math.abs(a.w); });
+    // frozen levers: strongest elastic-net weights (fixed by training)
+    var src = W.en40.coef.some(function (v) { return v !== 0; }) ? W.en40 : W.enAll;
+    var levers = src.coef.map(function (w, q) {
+      var gi = (src === W.en40) ? W.en40.idx[q] : q;
+      return { gene: W.genes[gi], w: w };
+    }).filter(function (o) { return o.w !== 0; })
+      .sort(function (a, b) { return Math.abs(b.w) - Math.abs(a.w); })
+      .slice(0, 15);
 
     return {
       ok: true,
-      n: n, p: p, lambda: lambda,
-      ageMin: Math.min.apply(null, y), ageMax: Math.max.apply(null, y),
-      sexValue: sexValue,
+      mode: "weights",
+      n: n, p: p, matched: matched,
+      ageMin: Math.min.apply(null, age), ageMax: Math.max.apply(null, age),
       views: [
-        { key: "all", labelAll: true, mae: maeAll },
-        { key: "40", mae: mae40, k: top40.length },
-        { key: "big", mae: maeBig, k: bigK },
-        { key: "ens", mae: maeEns }
+        { key: "deep", mae: maeD },
+        { key: "en40", mae: mae40 },
+        { key: "enAll", mae: maeA },
+        { key: "ens", mae: maeE }
       ],
-      maeEns: maeEns, r2: r2Ens, rho: rhoEns,
-      bandMae: bandMaeOut, bandN: bandN,
-      gateAuc: gateAuc, gateN: lab.filter(function (v) { return v === 1; }).length,
+      maeEns: maeE, r2: r2(ensP, age), rho: spearman(ensP, age),
+      bandMae: { Y: bandMae("Y"), M: bandMae("M"), L: bandMae("L") }, bandN: bandN,
+      gateAuc: gateAuc, gateN: bandN.L,
       levers: levers,
-      scatter: keepBand.map(function (b, i) { return { x: y[i], y: predEns[i], band: b }; }),
-      perSample: keep.map(function (id, i) { return { id: id, age: y[i], pred: predEns[i], band: keepBand[i] }; })
+      scatter: band.map(function (b, i2) { return { x: age[i2], y: ensP[i2], band: b }; }),
+      perSample: ids.map(function (id, i2) {
+        return { id: id, age: age[i2], pred: ensP[i2], band: band[i2], lProb: pL[i2] };
+      }),
+      meta: W.meta || {}
     };
   }
 
@@ -449,7 +469,9 @@
   return {
     parsePhenotype: parsePhenotype,
     parseExpression: parseExpression,
-    buildClock: buildClock,
+    loadWeights: loadWeights,
+    hasWeights: hasWeights,
+    predict: predict,
     unzip: unzip,
     _metrics: { mae: mae, rmse: rmse, r2: r2, spearman: spearman, rocAuc: rocAuc }
   };
