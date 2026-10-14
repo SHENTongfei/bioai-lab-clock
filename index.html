@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="product">LoCRANE · Aging Clock — BioAI Lab</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <meta name="description" content="Drag in a transcriptomic dataset and get a longevity-certified aging clock, computed entirely in your browser. BioAI Lab.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <header class="site-head">
+    <div class="brand">
+      <span class="logo-card"><img src="assets/logo-256.png" alt="BioAI Lab" width="44" height="44"></span>
+      <span class="brand-txt">
+        <strong data-i18n="brand">BioAI Lab</strong>
+        <small data-i18n="product">LoCRANE · Aging Clock</small>
+      </span>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" class="lang-btn is-active" data-lang="en">EN</button>
+      <button type="button" class="lang-btn" data-lang="zh-Hans">中文</button>
+      <button type="button" class="lang-btn" data-lang="zh-Hant">繁體</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1 data-i18n="hero" data-hl></h1>
+      <p data-i18n="heroSub"></p>
+    </section>
+
+    <section class="drop-card glass" id="drop" aria-label="Drop data">
+      <div class="drop-inner">
+        <div class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 6v26M15 22l9 9 9-9"/>
+            <path d="M8 38h32v4H8z"/>
+          </svg>
+        </div>
+        <div class="drop-txt">
+          <div class="drop-title" data-i18n="dropTitle"></div>
+          <div class="drop-or"><span data-i18n="dropOr"></span></div>
+          <div class="drop-btns">
+            <button type="button" class="btn btn-primary" id="btnDemo"><span data-i18n="btnDemo"></span></button>
+            <a class="btn btn-ghost" id="btnDownload" href="#"><span data-i18n="btnDownload"></span></a>
+          </div>
+        </div>
+      </div>
+      <div class="drop-chips">
+        <span class="chip"><i class="dot dot-a"></i><span data-i18n="dropHintExpr"></span></span>
+        <span class="chip"><i class="dot dot-b"></i><span data-i18n="dropHintPhen"></span></span>
+      </div>
+      <input type="file" id="fileInput" accept=".csv,.tsv,.txt" multiple hidden>
+    </section>
+
+    <div class="status" id="status" hidden>
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="statusText" data-i18n="computing"></span>
+    </div>
+
+    <section class="results" id="results" hidden>
+      <div class="results-head">
+        <h2 data-i18n="resultsTitle"></h2>
+        <p data-i18n="resultsSub"></p>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi glass"><small data-i18n="kpiMae"></small><strong id="kpiMae">–</strong><span id="kpiMaeSub"></span></div>
+        <div class="kpi glass"><small data-i18n="kpiR2"></small><strong id="kpiR2">–</strong></div>
+        <div class="kpi glass"><small data-i18n="kpiSpearman"></small><strong id="kpiSpearman">–</strong></div>
+        <div class="kpi glass"><small data-i18n="kpiSamples"></small><strong id="kpiSamples">–</strong></div>
+        <div class="kpi glass"><small data-i18n="kpiSex"></small><strong id="kpiSex">–</strong></div>
+        <div class="kpi glass kpi-gate"><small data-i18n="kpiGate"></small><strong id="kpiGate">–</strong></div>
+      </div>
+
+      <div class="grid">
+        <figure class="card glass chart chart-wide">
+          <figcaption data-i18n="scatterTitle"></figcaption>
+          <div class="chart-box" id="chartScatter" role="img"></div>
+        </figure>
+
+        <figure class="card glass">
+          <figcaption data-i18n="viewsTitle"></figcaption>
+          <div class="chart-box" id="chartViews" role="img"></div>
+        </figure>
+
+        <figure class="card glass">
+          <figcaption data-i18n="bandTitle"></figcaption>
+          <div class="chart-box" id="chartBands" role="img"></div>
+        </figure>
+
+        <figure class="card glass chart-wide">
+          <div class="lever-head">
+            <figcaption data-i18n="leversTitle"></figcaption>
+            <small data-i18n="leversSub"></small>
+          </div>
+          <div class="chart-box chart-tall" id="chartLevers" role="img"></div>
+        </figure>
+
+        <aside class="card glass gate-card">
+          <h3 data-i18n="gateTitle"></h3>
+          <div class="gate-big">
+            <strong id="gateAuc">–</strong>
+            <small data-i18n="gateAuc"></small>
+          </div>
+          <p class="gate-note" data-i18n="gateNote" data-vars></p>
+          <p class="gate-n" id="gateN"></p>
+        </aside>
+      </div>
+
+      <details class="samples glass">
+        <summary data-i18n="sampleTable"></summary>
+        <div class="tbl-wrap">
+          <table id="sampleTable">
+            <thead><tr>
+              <th data-i18n="colSample"></th><th data-i18n="colChron"></th>
+              <th data-i18n="colPred"></th><th data-i18n="colResid"></th><th data-i18n="colBand"></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <p data-i18n="disclaimer"></p>
+      <div class="foot-links">
+        <span data-i18n="footerPaper"></span>
+        <a href="https://github.com/SHENTongfei/LoCRANE" target="_blank" rel="noopener" data-i18n="footerRepo"></a>
+      </div>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
