@@ -161,34 +161,7 @@
         <article class="card glass how-card">
           <h3 data-i18n="bioTitle"></h3>
           <p data-i18n="bioText"></p>
-          <div class="fig fig-bands">
-            <svg viewBox="0 30 700 150" class="svg-fig" aria-hidden="true">
-              <defs>
-                <linearGradient id="gY" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#9cc7de"/><stop offset="1" stop-color="#c2e0ee"/>
-                </linearGradient>
-                <linearGradient id="gM" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#776b97"/><stop offset="1" stop-color="#b9aed1"/>
-                </linearGradient>
-                <linearGradient id="gL" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#c68dc0"/><stop offset="1" stop-color="#e7b8dd"/>
-                </linearGradient>
-              </defs>
-              <rect x="50"  y="66" width="186" height="54" rx="26" fill="url(#gY)" opacity="0.92"/>
-              <rect x="257" y="66" width="186" height="54" rx="26" fill="url(#gM)" opacity="0.92"/>
-              <rect x="464" y="66" width="186" height="54" rx="26" fill="url(#gL)" opacity="0.96"/>
-              <text class="seg-lab" x="143" y="99" text-anchor="middle" data-i18n="bandY"></text>
-              <text class="seg-lab" x="350" y="99" text-anchor="middle" data-i18n="bandM"></text>
-              <text class="seg-lab seg-lab-l" x="557" y="99" text-anchor="middle" data-i18n="bandL"></text>
-              <text class="anno" x="557" y="50" text-anchor="middle" data-i18n="svgAnno"></text>
-              <line x1="50" y1="142" x2="650" y2="142" stroke="rgba(255,255,255,.16)" stroke-width="1.5"/>
-              <line x1="247" y1="135" x2="247" y2="149" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-              <line x1="454" y1="135" x2="454" y2="149" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
-              <text class="tick" x="247" y="168" text-anchor="middle">50</text>
-              <text class="tick" x="454" y="168" text-anchor="middle">90</text>
-              <text class="tick" x="650" y="168" text-anchor="end">age</text>
-            </svg>
-          </div>
+
         </article>
 
         <article class="card glass how-card">
@@ -262,6 +235,37 @@
 <span class="c-kw">const</span> band = <span class="c-fn">softmax</span>(deepBand(x, sex))[2];  <span class="c-com">// the long-lived track score</span></code></pre>
           </div>
         </article>
+
+        <figure class="card glass how-wide fig-card">
+          <div class="fig fig-bands">
+            <svg viewBox="0 30 700 150" class="svg-fig" aria-hidden="true">
+              <defs>
+                <linearGradient id="gY" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#9cc7de"/><stop offset="1" stop-color="#c2e0ee"/>
+                </linearGradient>
+                <linearGradient id="gM" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#776b97"/><stop offset="1" stop-color="#b9aed1"/>
+                </linearGradient>
+                <linearGradient id="gL" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#c68dc0"/><stop offset="1" stop-color="#e7b8dd"/>
+                </linearGradient>
+              </defs>
+              <rect x="50"  y="66" width="186" height="54" rx="26" fill="url(#gY)" opacity="0.92"/>
+              <rect x="257" y="66" width="186" height="54" rx="26" fill="url(#gM)" opacity="0.92"/>
+              <rect x="464" y="66" width="186" height="54" rx="26" fill="url(#gL)" opacity="0.96"/>
+              <text class="seg-lab" x="143" y="99" text-anchor="middle" data-i18n="bandY"></text>
+              <text class="seg-lab" x="350" y="99" text-anchor="middle" data-i18n="bandM"></text>
+              <text class="seg-lab seg-lab-l" x="557" y="99" text-anchor="middle" data-i18n="bandL"></text>
+              <text class="anno" x="557" y="50" text-anchor="middle" data-i18n="svgAnno"></text>
+              <line x1="50" y1="142" x2="650" y2="142" stroke="rgba(255,255,255,.16)" stroke-width="1.5"/>
+              <line x1="247" y1="135" x2="247" y2="149" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+              <line x1="454" y1="135" x2="454" y2="149" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>
+              <text class="tick" x="247" y="168" text-anchor="middle">50</text>
+              <text class="tick" x="454" y="168" text-anchor="middle">90</text>
+              <text class="tick" x="650" y="168" text-anchor="end">age</text>
+            </svg>
+          </div>
+        </figure>
 
         <article class="card glass how-card how-wide">
           <h3 data-i18n="codeTitle"></h3>

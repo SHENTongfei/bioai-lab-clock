@@ -185,12 +185,14 @@ th{color:var(--ink-dim);font-weight:600;position:sticky;top:0;background:var(--b
 .how{margin-top:64px}
 .sec-title{font-size:clamp(22px,3vw,30px);margin:0 0 20px;font-weight:800;letter-spacing:-.3px;position:relative;padding-bottom:14px}
 .sec-title::after{content:"";position:absolute;left:0;bottom:0;width:64px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--rose-2),transparent)}
-.how-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.how-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .how-card{padding:24px}
 .how-card h3{font-size:17px;margin:0 0 10px;color:var(--ink)}
 .how-card p{font-size:14px;color:var(--ink-dim);line-height:1.65;margin:0 0 16px}
 .how-wide{grid-column:1/-1}
-.fig{display:flex;justify-content:center;margin:6px 0 14px}
+.fig{display:flex;justify-content:center;margin:6px 0 4px}
+.fig-card{padding:26px 20px}
+.fig-card .svg-fig{display:block;max-width:900px;margin:0 auto}
 .svg-fig{width:100%;max-width:100%;height:auto}
 .svg-fig text{font-family:var(--sans)}
 .seg-lab{fill:#0d1226;font-size:17px;font-weight:700}
