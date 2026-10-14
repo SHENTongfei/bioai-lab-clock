@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BioAI Lab</title>
+  <style>
+    :root{--rose:#e29fd4;--violet:#8f83b8;--ink:#eef1fb;--dim:#a3add2;
+      --sans:"Inter","Segoe UI",system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100dvh;display:grid;place-items:center;color:var(--ink);
+      font-family:var(--sans);line-height:1.55;
+      background:radial-gradient(600px 320px at 80% 0%,rgba(198,141,192,.28),transparent 60%),
+      radial-gradient(520px 320px at 10% 90%,rgba(119,107,151,.3),transparent 60%),#0a0e1c}
+    .card{max-width:420px;width:92vw;text-align:center;padding:44px 34px;border-radius:20px;
+      background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.11);
+      box-shadow:0 18px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+    .mark{font-size:15px;font-weight:800;letter-spacing:.4px;
+      background:linear-gradient(90deg,#fff,#9cc7de 55%,var(--rose));-webkit-background-clip:text;background-clip:text;color:transparent}
+    h1{font-size:24px;margin:18px 0 8px;font-weight:700}
+    p{color:var(--dim);font-size:14.5px;margin:0 0 6px}
+    .hint{font-size:12.5px!important;color:#6d779c!important}
+    .go{display:inline-block;margin-top:22px;padding:13px 26px;border-radius:14px;text-decoration:none;
+      font-size:15px;font-weight:700;color:#fff;background:linear-gradient(135deg,#c68dc0,#8f83b8);
+      box-shadow:0 10px 30px rgba(198,141,192,.4);transition:.2s}
+    .go:hover{transform:translateY(-2px)}
+    .lang{display:flex;gap:6px;justify-content:center;margin-top:26px}
+    .lang button{font-family:var(--sans);font-size:12.5px;color:var(--dim);background:none;
+      border:1px solid rgba(255,255,255,.14);padding:7px 14px;border-radius:999px;cursor:pointer}
+    .lang button.on{color:#fff;border-color:transparent;background:linear-gradient(135deg,#c68dc0,#8f83b8)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark">BioAI Lab · LoCRANE</div>
+    <h1 id="t"></h1>
+    <p id="b"></p>
+    <p class="hint" id="h"></p>
+    <a class="go" id="go" href="https://shentongfei.github.io/bioai-lab-clock/"></a>
+    <div class="lang">
+      <button data-l="en">EN</button><button data-l="zh-Hans">中文</button><button data-l="zh-Hant">繁體</button>
+    </div>
+  </div>
+  <script>
+    var D = {
+      "en": {
+        t: "This page is not here.",
+        b: "The link you followed points to a page that does not exist on this site.",
+        h: "If you just refreshed, the site may still be waking up. Wait half a minute and try again.",
+        go: "Back to the clock"
+      },
+      "zh-Hans": {
+        t: "这一页不在这里。",
+        b: "你点进来的地址，在这个网站上不存在。",
+        h: "如果你是刚刷新进来的，站点可能还在醒来。等半分钟再试一次。",
+        go: "回到时钟"
+      },
+      "zh-Hant": {
+        t: "這一頁不在這裡。",
+        b: "你點進來的地址，在這個網站上不存在。",
+        h: "如果你是剛重新整理過，網站可能還在醒來。等半分鐘再試一次。",
+        go: "回到時鐘"
+      }
+    };
+    function pick() { return (localStorage.getItem("bioai-lang") in D) ? localStorage.getItem("bioai-lang") : "en"; }
+    function render() {
+      var c = pick(), x = D[c];
+      document.getElementById("t").textContent = x.t;
+      document.getElementById("b").textContent = x.b;
+      document.getElementById("h").textContent = x.h;
+      document.getElementById("go").textContent = x.go;
+      document.documentElement.lang = c;
+      document.querySelectorAll(".lang button").forEach(function (b) {
+        b.classList.toggle("on", b.getAttribute("data-l") === c);
+      });
+    }
+    document.querySelectorAll(".lang button").forEach(function (b) {
+      b.addEventListener("click", function () { localStorage.setItem("bioai-lang", b.getAttribute("data-l")); render(); });
+    });
+    render();
+  </script>
+</body>
+</html>

@@ -160,7 +160,7 @@
     $("gateBig").textContent = hasGate ? s.toFixed(2) : "–";
     $("gateScore").textContent = t("gateScore", { s: hasGate ? s.toFixed(2) : "–" });
     $("gateNote").textContent = t("gateNote", { v: isFinite(lr) ? Math.abs(lr).toFixed(1) : "–" });
-    $("gateMeta").textContent = t("gateMeta") + " " + r.gateN + " · " + r.p + " · λ" + r.lambda;
+    $("gateMeta").textContent = t("gateMeta", { n: r.gateN, p: r.p });
 
     renderScatter(r);
     renderViews(r);
