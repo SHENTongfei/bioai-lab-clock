@@ -37,6 +37,14 @@
       .then(function (r) { if (!r.ok) throw new Error("http " + r.status); return r.json(); })
       .then(function (j) { state.full = j; });
     state.wFullReady.catch(function (e) { console.error("weights:", e); });
+    state.wFullReady.then(function () { fillSvgMae(state.full && state.full.meta); }).catch(function () {});
+  }
+  function fillSvgMae(meta) {
+    var mm = meta && meta.memberMae;
+    if (!mm || !$("svgMaeDeep")) return;
+    $("svgMaeDeep").textContent = "MAE " + mm.deep;
+    $("svgMae40").textContent = "MAE " + mm.en40;
+    $("svgMaeAll").textContent = "MAE " + mm.enAll;
   }
   var $ = function (id) { return document.getElementById(id); };
 

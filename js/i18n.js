@@ -77,7 +77,7 @@
       svgAll: "all genes",
       svg40: "top 40",
       svg150: "top 150",
-      svgBlend: "take the average",
+      svgBlend: "average",
       svgReading: "the reading",
       svgW: "trained rules",
       svgAnno: "reads younger than they are",
